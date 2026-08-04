@@ -1,0 +1,20 @@
+{
+  "name": "playwright-best-practices",
+  "version": "0.1.0",
+  "description": "Playwright best-practice patterns — bilingual (EN/KO) catalog with runnable examples",
+  "author": "Timothy Seungmin Han",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "app": "node app/server.mjs",
+    "test": "playwright test",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3",
+    "zod": "^4.4.3"
+  }
+}

@@ -46,8 +46,3 @@ npm run report          # HTML 리포트 열기
 ├── playwright.config.ts    # webServer + 커스텀 summary 리포터 포함 리포터 설정
 └── .github/workflows/      # CI: 타입체크 + 모든 예제를 매 push마다 실행
 ```
-
-## 원칙
-
-1. **모든 샘플은 실행되어야 합니다.** CI가 매 push마다 모든 예제를 실행합니다 — 샘플이 컴파일되지 않는 패턴 문서는 Playwright 메이저 두 번 안에 허구가 됩니다.
-2. **트레이드오프는 필수입니다.** 트레이드오프가 없는 패턴 설명은 엔지니어링이 아니라 마케팅입니다.

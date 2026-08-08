@@ -6,7 +6,7 @@ import { itemsPage } from './items-page.js';
 import { dataTable } from './data-table.js';
 
 test('컴포넌트를 통해 테이블을 파싱하고 인터랙션한다', async ({ page }) => {
-  const name = `component-demo-${Date.now()}`;
+  const name = `component-demo-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   await page.goto('/');
 
   await itemsPage.addItem(page, name);
@@ -17,12 +17,12 @@ test('컴포넌트를 통해 테이블을 파싱하고 인터랙션한다', asyn
 
   await itemsPage.deleteItemByName(page, name);
   await expect(
-    itemsPage.locators.table(page).getByRole('row').filter({ hasText: name }),
+    itemsPage.locators.table(page).getByRole('row').filter({ has: page.getByText(name, { exact: true }) }),
   ).toHaveCount(0);
 });
 
 test('일치하는 행이 없으면 행 탐색은 크게 실패한다', async ({ page }) => {
-  const name = `component-guard-${Date.now()}`;
+  const name = `component-guard-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   await page.goto('/');
   await itemsPage.addItem(page, name);
 

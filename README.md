@@ -2,7 +2,8 @@
 
 Playwright 테스트 자동화 패턴 카탈로그입니다. 번들된 무의존성 타깃 앱에 대해 CI에서 통과하는 실행 가능한 예제로 뒷받침됩니다.
 
-- 📖 **[패턴 카탈로그](./docs/playwright-best-practices.md)**
+- 📖 **[패턴 카탈로그](./docs/playwright-best-practices.md)** — 사람을 위한 문서: 각 패턴의 배경, 트레이드오프, 예제 링크
+- 🤖 **[AI 에이전트용 규칙](./docs/ai-rules.md)** — AI 코딩 도구를 위한 문서: [공식 베스트 프랙티스](https://playwright.dev/docs/best-practices)를 전제로 그 위에 얹는 추가 규칙. 프로젝트의 `CLAUDE.md`/`AGENTS.md`/`.cursorrules`에 복사하면 AI가 이 카탈로그의 패턴대로 테스트를 작성합니다
 
 ## 빠른 시작
 
@@ -41,7 +42,7 @@ npm run report          # HTML 리포트 열기
 
 ```
 ├── app/                    # 밀폐형 타깃 앱 (무의존성 Node HTTP 서버 + 페이지 하나)
-├── docs/                   # 패턴 카탈로그
+├── docs/                   # 패턴 카탈로그 + AI 에이전트용 규칙
 ├── patterns/               # 실행 가능한 예제, 패턴당 디렉토리 하나 (testDir)
 ├── playwright.config.ts    # webServer + 커스텀 summary 리포터 포함 리포터 설정
 └── .github/workflows/      # CI: 타입체크 + 모든 예제를 매 push마다 실행

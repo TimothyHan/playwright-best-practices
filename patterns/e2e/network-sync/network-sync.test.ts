@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 
 test('변경 액션 후 response 대기 + 렌더 대기', async ({ page }) => {
-  const name = `sync-demo-${Date.now()}`;
+  const name = `sync-demo-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   await page.goto('/');
 
   // 1. 액션을 유발하기 전에 response 리스너를 먼저 장전
@@ -21,13 +21,13 @@ test('변경 액션 후 response 대기 + 렌더 대기', async ({ page }) => {
   await listRefetch;
 
   // 4. …하지만 response ≠ render: DOM에 실제로 표시될 때까지 대기
-  await expect(page.getByTestId('item-row').filter({ hasText: name })).toBeVisible();
+  await expect(page.getByTestId('item-row').filter({ has: page.getByText(name, { exact: true }) })).toBeVisible();
 
   // 공유 앱을 깨끗하게 유지하기 위해 UI로 정리
   await page
     .getByTestId('item-row')
-    .filter({ hasText: name })
+    .filter({ has: page.getByText(name, { exact: true }) })
     .getByTestId('delete-button')
     .click();
-  await expect(page.getByTestId('item-row').filter({ hasText: name })).toHaveCount(0);
+  await expect(page.getByTestId('item-row').filter({ has: page.getByText(name, { exact: true }) })).toHaveCount(0);
 });

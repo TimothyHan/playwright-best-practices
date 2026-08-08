@@ -8,7 +8,7 @@ import { createItem, listItems } from './items-client.js';
 test.describe.configure({ mode: 'serial' });
 
 test('생성된 엔티티는 자동으로 정리된다', async ({ request, disposalContext }) => {
-  const name = `disposal-demo-${Date.now()}`;
+  const name = `disposal-demo-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
 
   const created = await createItem(request, name, disposalContext);
   const { id } = await created.json();

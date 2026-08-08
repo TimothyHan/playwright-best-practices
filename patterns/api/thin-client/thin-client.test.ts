@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { listItems, createItem, deleteItem, type Item } from './items-client.js';
 
 test('해피 패스: 생성, 확인, 삭제', async ({ request }) => {
-  const name = `thin-client-${Date.now()}`;
+  const name = `thin-client-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
 
   const created: Item = await (await createItem(request, name)).json();
   expect(created).toMatchObject({ name });

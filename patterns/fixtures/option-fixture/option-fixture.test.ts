@@ -6,7 +6,7 @@ test('아무것도 오버라이드하지 않으면 옵션은 기본값을 제공
   expect(itemPrefix).toBe('demo');
 
   // 옵션이 실제 동작을 파라미터화 — 여기서는 테스트 데이터 네이밍
-  const name = `${itemPrefix}-option-${Date.now()}`;
+  const name = `${itemPrefix}-option-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   const created = await request.post('/api/items', { data: { name } });
   expect(created.status()).toBe(201);
   const { id } = await created.json();

@@ -6,12 +6,12 @@ import { test, expect } from './fixture.js';
 
 test('테스트 데이터가 이 worker의 계정 범위로 격리된다', async ({ workerAuth, request }, testInfo) => {
   // 목록 순서 할당: worker N이 N번째 상태 파일을 가짐
-  expect(workerAuth.username).toBe(`test-user-${testInfo.workerIndex % 4}`);
+  expect(workerAuth.username).toBe(`test-user-${testInfo.parallelIndex % 4}`);
   expect(fs.existsSync(workerAuth.statePath)).toBe(true);
 
   // 계정 접두사 네이밍: 다른 worker가 같은 테스트를 동시에 실행해도
   // 그 데이터는 다른 계정 접두사를 가짐
-  const name = `${workerAuth.username}-item-${Date.now()}`;
+  const name = `${workerAuth.username}-item-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   const created = await request.post('/api/items', { data: { name } });
   expect(created.status()).toBe(201);
   const { id } = await created.json();
@@ -24,7 +24,7 @@ test('테스트 데이터가 이 worker의 계정 범위로 격리된다', async
 
 test('같은 worker는 모든 테스트에서 같은 계정을 본다', async ({ workerAuth }, testInfo) => {
   // worker 스코프: 이 worker의 테스트 사이에 다시 생성되지 않음
-  expect(workerAuth.username).toBe(`test-user-${testInfo.workerIndex % 4}`);
+  expect(workerAuth.username).toBe(`test-user-${testInfo.parallelIndex % 4}`);
 });
 
 test('내장 fixture들이 worker 계정으로 자동 인증된다', async ({ context, page, workerAuth }) => {

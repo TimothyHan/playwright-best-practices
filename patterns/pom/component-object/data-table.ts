@@ -14,29 +14,36 @@ export const dataTable = {
   dataRows: (root: Locator): Locator => root.getByRole('row').filter({ has: root.page().getByRole('cell') }),
 
   async headers(root: Locator): Promise<string[]> {
-    const cells = await this.headerRow(root).getByRole('columnheader').all();
-    const headers: string[] = [];
-    for (const [index, cell] of cells.entries()) {
-      const text = ((await cell.textContent()) ?? '').trim();
-      headers.push(text || `col${index}`); // 이름 없는 컬럼(예: 액션)은 위치 키를 부여
-    }
-    return headers;
+    // 원자적 읽기 — 헤더는 정적이라 위험은 낮지만(R6 가드), parse()와 동일한
+    // 규칙을 따른다: 스냅샷과 읽기 사이에 await 공백을 두지 않는다.
+    const texts = await this.headerRow(root)
+      .getByRole('columnheader')
+      .evaluateAll((cells) => cells.map((cell) => (cell.textContent ?? '').trim()));
+    return texts.map((text, index) => text || `col${index}`); // 이름 없는 컬럼(예: 액션)은 위치 키
   },
 
   async parse(root: Locator): Promise<Record<string, string>[]> {
     // 스냅샷 전에 최소 한 개의 데이터 행을 기다림 (§2.5 / §6.4)
     await this.dataRows(root).first().waitFor();
     const headers = await this.headers(root);
-    const parsed: Record<string, string>[] = [];
-    for (const row of await this.dataRows(root).all()) {
-      const cells = await row.getByRole('cell').all();
+    // 원자적 읽기: 행/셀 텍스트를 브라우저 안에서 한 번에 수집.
+    // `.all()` 후 셀마다 textContent()를 await하는 방식은 스냅샷과 읽기
+    // 사이에 공백이 생겨, 동시 실행 중인 다른 테스트가 행을 지우면
+    // 사라진 요소를 auto-wait하다 타임아웃까지 매달린다 (실전 확인).
+    const rowTexts = await this.dataRows(root).evaluateAll((rows) =>
+      rows.map((row) =>
+        Array.from(row.querySelectorAll('[role="cell"], td')).map(
+          (cell) => (cell.textContent ?? '').trim(),
+        ),
+      ),
+    );
+    return rowTexts.map((cells) => {
       const entry: Record<string, string> = {};
-      for (const [index, cell] of cells.entries()) {
-        entry[headers[index] ?? `col${index}`] = ((await cell.textContent()) ?? '').trim();
-      }
-      parsed.push(entry);
-    }
-    return parsed;
+      cells.forEach((text, index) => {
+        entry[headers[index] ?? `col${index}`] = text;
+      });
+      return entry;
+    });
   },
 
   /**
@@ -48,6 +55,9 @@ export const dataTable = {
     const table = await this.parse(root);
     const index = table.findIndex((row) => row[column] === value);
     if (index === -1) throw new Error(`"${column}"이 "${value}"인 행이 없습니다`);
-    return this.dataRows(root).nth(index);
+    // 인덱스가 아니라 내용으로 앵커: parse와 사용 사이에 다른 테스트가 행을
+    // 추가/삭제하면 nth(index)는 조용히 다른 행을 가리킨다. exact-match
+    // 필터는 대상 행 자체에 고정된다.
+    return this.dataRows(root).filter({ has: root.page().getByText(value, { exact: true }) });
   },
 };

@@ -70,6 +70,11 @@ tests/
 
 ## 2. 페이지 객체 패턴
 
+모든 변형에 공통인 로케이터 규칙 두 가지:
+
+- **테스트 속성 컨벤션을 먼저 확인하세요.** 앱이 `data-testid`가 아니라 `data-test`, `data-cy` 등을 쓰면 설정에 `use.testIdAttribute`가 필수입니다. 러너 밖에서 도는 스크립트(디스커버리 도구 등)는 별도로 `selectors.setTestIdAttribute(...)`를 호출해야 합니다 — config는 러너 안에서만 적용됩니다.
+- **이름으로 행/카드를 찾을 때는 exact-match.** `filter({ hasText: name })`은 부분 일치라 "Pliers"가 "Combination Pliers"에도 매칭됩니다 (실전: 엉뚱한 상품 클릭 + strict mode 위반). `filter({ has: page.getByText(name, { exact: true }) })`를 쓰세요.
+
 ### 2.1 무상태 함수형 POM
 
 로케이터와 인터랙션은 `page`를 받는 일반 함수이며, 페이지 객체는 클래스가 아닌 모듈 레벨 객체입니다.
@@ -261,14 +266,15 @@ export const test = base.extend<{}, { seededOrg: Org }>({
 
 #### 3.3.2 병렬 실행을 위한 worker당 테스트 계정 하나
 
-병렬 worker들이 계정 하나를 공유하면 서로 간섭합니다 — 한 worker의 로그인이 다른 worker의 세션을 무효화할 수 있고, 데이터가 충돌합니다. Global setup(§4.1)이 테스트 계정별로 한 번씩 로그인하여 `.auth/` 아래에 계정당 인증된 `storageState` 파일 하나를 저장하고, worker fixture가 `fs`로 그 파일 목록을 읽어 목록 순서대로 worker에 할당합니다 — worker N이 N번째 파일을 가져갑니다. 상태 파일 수는 `workers` 수에 맞춥니다:
+병렬 worker들이 계정 하나를 공유하면 서로 간섭합니다 — 한 worker의 로그인이 다른 worker의 세션을 무효화할 수 있고, 데이터가 충돌합니다. Global setup(§4.1)이 테스트 계정별로 한 번씩 로그인하여 `.auth/` 아래에 계정당 인증된 `storageState` 파일 하나를 저장하고, worker fixture가 `fs`로 그 파일 목록을 읽어 **`parallelIndex`**로 할당합니다 — `workerIndex`는 worker가 재시작(크래시 후 등)될 때마다 증가해 계정 목록 범위를 벗어나지만, `parallelIndex`는 0..workers-1의 안정적인 슬롯 번호입니다. 상태 파일 수는 `workers` 수에 맞춥니다:
 
 ```ts
 workerAuth: [async ({}, use, workerInfo) => {
     // .sort()가 중요: readdir 순서는 플랫폼에 따라 다름
     const stateFiles = fs.readdirSync(AUTH_DIR).filter((f) => f.endsWith('.json')).sort();
-    const stateFile = stateFiles[workerInfo.workerIndex];
-    if (!stateFile) throw new Error(`No auth state for worker #${workerInfo.workerIndex} — add accounts to .auth/`);
+    // parallelIndex: 안정적인 슬롯(0..workers-1). workerIndex는 재시작 시 증가.
+    const stateFile = stateFiles[workerInfo.parallelIndex];
+    if (!stateFile) throw new Error(`No auth state for worker slot #${workerInfo.parallelIndex} — add accounts to .auth/`);
     await use({ username: path.basename(stateFile, '.json'), statePath: path.join(AUTH_DIR, stateFile) });
 }, { scope: 'worker' }],
 
@@ -279,6 +285,10 @@ storageState: async ({ workerAuth }, use) => {
     await use(workerAuth.statePath);
 },
 ```
+
+⚠️ **검증/스모크 스펙 포함, 모든 스펙이 이 fixture 파일을 import해야 합니다.** 일부 스펙만 기본 `@playwright/test`를 직접 쓰면 그 스펙은 어느 worker에서 돌든 config 기본 storageState의 **같은 계정**으로 인증됩니다 — `--repeat-each` + 다중 worker에서 같은 스펙의 두 인스턴스가 같은 계정의 사용자별 상태를 동시에 변경하며 레이스가 생기고, 증상은 일반 플레이크처럼 보입니다("context has been closed", 있어야 할 요소의 클릭 타임아웃). 주변 상태를 읽는 대신 자기 대상 데이터를 self-seed하세요.
+
+⚠️ **결정적 네거티브 인증 테스트는 `--repeat-each` 대상에서 제외하세요.** 틀린 비밀번호 → 에러 표시 같은 테스트는 반복해도 타이밍 플레이크를 드러낼 수 없고, 앱에 brute-force 잠금(N회 실패 시 계정 잠금 — 흔한 보안 기능)이 있으면 반복이 잠금을 유발해 같은 계정을 쓰는 **모든** 테스트가 무관해 보이는 증상(*올바른* 비밀번호 로그인의 `waitForURL` 타임아웃 등)으로 연쇄 실패합니다. 별도 프로젝트로 분리해 1회만 실행하고, 플레이크 게이트는 `--project=`로 나머지만 돌립니다. 참고로 `--repeat-each`는 종속(dependency) 프로젝트를 반복하지 않으므로 플레이크 게이트는 프로젝트별로 실행해야 합니다.
 
 한 worker의 모든 테스트는 그 worker의 계정을 받고, 두 worker가 세션을 공유하는 일은 없습니다. 계정 풀은 코드가 아니라 디스크에 있으므로, worker를 늘리려면 상태 파일 하나만 추가하면 됩니다. 수동 `newContext({ storageState })`는 테스트 기본값과 다른 컨텍스트가 필요할 때만 사용합니다(§3.1). 계정 접두사를 붙인 테스트 데이터 이름(§5.3)과 결합하면 완전한 병렬 격리가 됩니다.
 
@@ -377,7 +387,7 @@ export const getApi: APIClientFunction = async (request, apiId, expStatusCode = 
 
 ### 5.3 병렬 안전한 데이터와 단언
 
-- **고유한 엔티티 이름**: 프로젝트 + 타임스탬프 접미사 (`tc01-${test.info().project.name}-${Date.now()}`). 크로스 브라우저 프로젝트는 *같은 테스트*를 *같은 테넌트*에서 동시에 실행 — 하드코딩된 이름은 충돌함.
+- **고유한 엔티티 이름**: 프로젝트 + 타임스탬프 + worker/repeat 엔트로피 접미사 (`tc01-${test.info().project.name}-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`). 크로스 브라우저 프로젝트는 *같은 테스트*를 *같은 테넌트*에서 동시에 실행하고, `--repeat-each`나 병렬 worker는 같은 밀리초에 이름을 만들 수 있음 — 타임스탬프만으로는 충돌함 (실전에서 409 충돌 확인).
 - **전역 카운트 단언 금지** (`initialCount + 1`): 동시 실행 중인 어떤 테스트가 엔티티를 생성해도 깨짐. *내* 엔티티의 존재/부재를 단언 (id로 탐색).
 - 매처를 의도적으로 선택: 배열 전체 동등성은 `toEqual`, 원소 하나의 포함은 `toContainEqual`, 순서 무관 동등성은 `arrayContaining` + `toHaveLength`.
 
@@ -519,7 +529,7 @@ test.describe('아이템 관리', () => {
   // beforeAll에서는 테스트 스코프 fixture(page, request)를 쓸 수 없으므로 자체 컨텍스트를 생성
   test.beforeAll(async () => {
     const api = await apiRequest.newContext({ baseURL: 'http://localhost:4173' });
-    seeded = await (await api.post('/api/items', { data: { name: `seed-${Date.now()}` } })).json();
+    seeded = await (await api.post('/api/items', { data: { name: `seed-${Date.now()}-w${test.info().workerIndex}` } })).json();
     await api.dispose();
   });
 
@@ -530,7 +540,9 @@ test.describe('아이템 관리', () => {
 
   // 테스트 본문: 행동과 단언만
   test('시드된 아이템이 목록에 보인다', async ({ page }) => {
-    await expect(page.getByTestId('item-row').filter({ hasText: seeded.name })).toBeVisible();
+    await expect(
+      page.getByTestId('item-row').filter({ has: page.getByText(seeded.name, { exact: true }) }),
+    ).toBeVisible();
   });
 
   // 티어다운 (worker당 한 번): 시드 제거 — 테스트가 실패해도 실행됨
@@ -555,7 +567,8 @@ test.describe('아이템 관리', () => {
 
 ```ts
 test('아이템 생애주기', async ({ page, request }) => {
-  const name = `step-demo-${Date.now()}`;
+  const info = test.info(); // worker+repeat 엔트로피: 같은 ms 충돌 방지
+  const name = `step-demo-${Date.now()}-w${info.workerIndex}r${info.repeatEachIndex}`;
 
   await test.step('API로 아이템 생성', async () => {
     const response = await request.post('/api/items', { data: { name } });

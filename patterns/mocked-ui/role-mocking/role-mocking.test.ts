@@ -6,7 +6,7 @@
 import { test, expect } from '@playwright/test';
 
 test('admin은 행 액션을 본다 (실제 프로필, 목킹 없음)', async ({ page, request }) => {
-  const name = `role-admin-${Date.now()}`;
+  const name = `role-admin-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   const created = await request.post('/api/items', { data: { name } });
   const { id } = await created.json();
 
@@ -14,14 +14,14 @@ test('admin은 행 액션을 본다 (실제 프로필, 목킹 없음)', async ({
 
   await expect(page.getByTestId('user-role')).toHaveText('demo-user (admin)');
   await expect(
-    page.getByTestId('item-row').filter({ hasText: name }).getByTestId('delete-button'),
+    page.getByTestId('item-row').filter({ has: page.getByText(name, { exact: true }) }).getByTestId('delete-button'),
   ).toBeVisible();
 
   await request.delete(`/api/items/${id}`);
 });
 
 test('viewer는 같은 데이터를 액션 없이 본다 (프로필 목킹)', async ({ page, request }) => {
-  const name = `role-viewer-${Date.now()}`;
+  const name = `role-viewer-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
   const created = await request.post('/api/items', { data: { name } });
   const { id } = await created.json();
 
@@ -34,7 +34,7 @@ test('viewer는 같은 데이터를 액션 없이 본다 (프로필 목킹)', as
 
   await expect(page.getByTestId('user-role')).toHaveText('view-only (viewer)');
   // 행은 렌더링되지만 admin 전용 액션은 렌더링되지 않음
-  const row = page.getByTestId('item-row').filter({ hasText: name });
+  const row = page.getByTestId('item-row').filter({ has: page.getByText(name, { exact: true }) });
   await expect(row).toBeVisible();
   await expect(row.getByTestId('delete-button')).toHaveCount(0);
 

@@ -26,16 +26,18 @@ export interface ItemRow {
  */
 const parseTable = async (page: Page): Promise<ItemRow[]> => {
   await locators.itemRows(page).first().waitFor();
-  const rows = await locators.itemRows(page).all();
-  const parsed: ItemRow[] = [];
-  for (const row of rows) {
-    const cells = await row.getByRole('cell').all();
-    parsed.push({
-      name: (await cells.at(0)?.textContent() ?? '').trim(),
-      created: (await cells.at(1)?.textContent() ?? '').trim(),
-    });
-  }
-  return parsed;
+  // 원자적 읽기: 행/셀 텍스트를 브라우저 안에서 한 번에 수집.
+  // `.all()` 후 셀마다 textContent()를 await하면 스냅샷과 읽기 사이에
+  // 공백이 생겨, 그 사이 리렌더로 행이 detach되면 사라진 요소를
+  // auto-wait하다 타임아웃까지 매달린다 (실전 확인 — §2.4 data-table 참조).
+  const rowTexts = await locators.itemRows(page).evaluateAll((rows) =>
+    rows.map((row) =>
+      Array.from(row.querySelectorAll('[role="cell"], td')).map(
+        (cell) => (cell.textContent ?? '').trim(),
+      ),
+    ),
+  );
+  return rowTexts.map((cells) => ({ name: cells[0] ?? '', created: cells[1] ?? '' }));
 };
 
 export const itemsPage = {
@@ -55,6 +57,9 @@ export const itemsPage = {
     const table = await parseTable(page);
     const index = table.findIndex((row) => row.name === name);
     if (index === -1) throw new Error(`"${name}" 이름의 아이템 행이 없습니다`);
-    await locators.deleteButtonInRow(locators.itemRows(page).nth(index)).click();
+    // 인덱스가 아니라 내용으로 앵커: parse와 클릭 사이에 행이 추가/삭제되면
+    // nth(index)는 조용히 다른 행을 가리킨다 (exact-match, §2 로케이터 규칙).
+    const row = locators.itemRows(page).filter({ has: page.getByText(name, { exact: true }) });
+    await locators.deleteButtonInRow(row).click();
   },
 };

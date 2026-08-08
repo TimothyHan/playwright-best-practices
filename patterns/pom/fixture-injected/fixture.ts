@@ -21,7 +21,7 @@ export class ItemsPage {
   }
 
   async deleteItemByName(name: string): Promise<void> {
-    const row = this.itemRows().filter({ hasText: name });
+    const row = this.itemRows().filter({ has: this.page.getByText(name, { exact: true }) });
     if ((await row.count()) === 0) throw new Error(`"${name}" 이름의 아이템 행이 없습니다`);
     await row.getByTestId('delete-button').click();
   }

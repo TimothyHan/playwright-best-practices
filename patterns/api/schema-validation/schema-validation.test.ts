@@ -7,7 +7,7 @@ import { createItem, listItems, deleteItem } from './items-client.js';
 import { ItemSchema } from './item.schema.js';
 
 test('모든 응답 바디가 클라이언트 경계에서 계약 검증된다', async ({ request }) => {
-  const name = `schema-demo-${Date.now()}`;
+  const name = `schema-demo-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`;
 
   // createItem이 이미 id(uuid), name, created_at(ISO datetime)을 검증
   const created = await createItem(request, name);
@@ -21,7 +21,7 @@ test('모든 응답 바디가 클라이언트 경계에서 계약 검증된다',
 });
 
 test('드리프트 감지의 실제 모습: 스키마 불일치가 정확한 경로와 함께 실패한다', async ({ request }) => {
-  const created = await createItem(request, `schema-drift-${Date.now()}`);
+  const created = await createItem(request, `schema-drift-${Date.now()}-w${test.info().workerIndex}r${test.info().repeatEachIndex}`);
 
   // API가 계약이 요구하는 필드를 빠뜨린 상황을 시뮬레이션: 실제 페이로드를
   // `price`를 기대하는 스키마로 검증 — zod가 정확히 어느 필드가 어디서

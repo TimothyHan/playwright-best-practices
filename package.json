@@ -1,6 +1,6 @@
 {
   "name": "playwright-best-practices",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Playwright best-practice patterns — bilingual (EN/KO) catalog with runnable examples",
   "author": "Timothy Seungmin Han",
   "license": "MIT",

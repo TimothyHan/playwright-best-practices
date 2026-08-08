@@ -30,10 +30,12 @@ export const test = base.extend<{}, { workerAuth: WorkerAuth }>({
         .sort();
 
       // 데모는 어떤 worker 수에서도 돌아가도록 모듈로 연산을 사용.
+      // parallelIndex: 안정적인 슬롯(0..workers-1). workerIndex는 worker
+      // 재시작(크래시 후 등) 시 계속 증가해 풀 할당에 쓰면 범위를 벗어난다.
       // 실제 스위트는 worker당 파일 하나를 유지하고 크게 실패시킬 것:
-      //   const stateFile = stateFiles[workerInfo.workerIndex];
-      //   if (!stateFile) throw new Error(`worker #${workerInfo.workerIndex}의 인증 상태가 없습니다 — .auth/에 계정을 추가하세요`);
-      const stateFile = stateFiles[workerInfo.workerIndex % stateFiles.length]!;
+      //   const stateFile = stateFiles[workerInfo.parallelIndex];
+      //   if (!stateFile) throw new Error(`worker 슬롯 #${workerInfo.parallelIndex}의 인증 상태가 없습니다 — .auth/에 계정을 추가하세요`);
+      const stateFile = stateFiles[workerInfo.parallelIndex % stateFiles.length]!;
 
       const auth: WorkerAuth = {
         username: path.basename(stateFile, '.json'),
